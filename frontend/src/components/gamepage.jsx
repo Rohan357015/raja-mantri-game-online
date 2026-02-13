@@ -24,7 +24,7 @@ export const StartGame = () => {
   const [currentPlayerId, setCurrentPlayerId] = useState(1); // Simulating current player
 
   const roles = ['raja', 'mantri', 'chor', 'sipahi'];
-  const rolePoints = { raja: 4, mantri: 3, chor: 2, sipahi: 1 };
+  const rolePoints = { raja: 1000, mantri: 3, chor: 2, sipahi: 1 };
   const roleColors = { raja: '#FFD700', mantri: '#C0C0C0', chor: '#FF6B6B', sipahi: '#4ECDC4' };
 
   // Start the game
@@ -35,11 +35,11 @@ export const StartGame = () => {
       phase: 'role-assignment'
     }));
   };
- // authentication store
-   const { room, roomCode, user, loading, getRoom, round, clearRoom, updateScores } = useAuthStore();
- const navigate = useNavigate();
+  // authentication store
+  const { room, roomCode, user, loading, getRoom, round, clearRoom, updateScores } = useAuthStore();
+  const navigate = useNavigate();
 
-   // ✅ Polling every 1 second
+  // ✅ Polling every 1 second
   useEffect(() => {
     if (!roomCode) return;
 
@@ -56,7 +56,7 @@ export const StartGame = () => {
 
     return () => clearInterval(interval); // cleanup
   }, [roomCode, getRoom]);
- if (!room) {
+  if (!room) {
     return (
       <div className="d-flex flex-column justify-content-center align-items-center game-container">
         <div className="container-fluid px-4 py-5 text-center">
@@ -70,11 +70,11 @@ export const StartGame = () => {
     );
   }
 
-  
+
   // Start a new round
   const startRound = () => {
     const shuffledRoles = [...roles].sort(() => Math.random() - 0.5);
-    
+
     setGameState(prev => {
       const newPlayers = prev.players.map((player, index) => ({
         ...player,
@@ -129,7 +129,7 @@ export const StartGame = () => {
       // Calculate points for each player
       newPlayers.forEach(player => {
         const points = rolePoints[player.role];
-        
+
         if (sipahiGuess.isCorrect) {
           // Sipahi gets their assigned points
           player.points += points;
@@ -137,11 +137,11 @@ export const StartGame = () => {
           // Sipahi and Chor swap points
           const sipahiPlayer = newPlayers.find(p => p.role === 'sipahi');
           const chorPlayer = newPlayers.find(p => p.role === 'chor');
-          
+
           if (sipahiPlayer && chorPlayer) {
             const sipahiPoints = sipahiPlayer.points;
             const chorPoints = chorPlayer.points;
-            
+
             sipahiPlayer.points = chorPoints;
             chorPlayer.points = sipahiPoints;
           }
@@ -188,27 +188,27 @@ export const StartGame = () => {
 
   // Reset game
   const resetGame = () => {
-  // get latest players from room
-  const playersFromRoom = room?.players || [];
+    // get latest players from room
+    const playersFromRoom = room?.players || [];
 
-  setGameState({
-    phase: 'waiting',
-    currentRound: 1,
-    totalRounds: round || 5,
-    players: playersFromRoom.map((p, index) => ({
-      id: p.id || index + 1,
-      name: p.name || `Player ${index + 1}`, // ✅ use actual name if exists
-      role: null,
-      points: 0,
-      isHost: index === 0 // first player is host
-    })),
-    cards: [],
-    sipahiGuess: null,
-    roundResults: [],
-    gameStarted: false
-  });
-  setSelectedPlayer(null);
-};
+    setGameState({
+      phase: 'waiting',
+      currentRound: 1,
+      totalRounds: round || 5,
+      players: playersFromRoom.map((p, index) => ({
+        id: p.id || index + 1,
+        name: p.name || `Player ${index + 1}`, // ✅ use actual name if exists
+        role: null,
+        points: 0,
+        isHost: index === 0 // first player is host
+      })),
+      cards: [],
+      sipahiGuess: null,
+      roundResults: [],
+      gameStarted: false
+    });
+    setSelectedPlayer(null);
+  };
 
 
   const getRoleDisplayName = (role) => {
@@ -245,11 +245,11 @@ export const StartGame = () => {
               <li>Sipahi must guess who is the Chor</li>
               <li>If Sipahi guesses correctly: Sipahi gets assigned points</li>
               <li>If Sipahi guesses wrong: Sipahi and Chor swap their total points</li>
-              <li>Points: Raja=4, Mantri=3, Chor=2, Sipahi=1</li>
+              <li>Points: Raja=1000, Mantri=800, Chor=000, Sipahi=500</li>
             </ul>
           </div>
           <button className="btn-primary" onClick={startGame}>
-            Start Game
+            {room?.hostName === user?.name ? "Start Game" : "Waiting for Host to Start..."}
           </button>
         </div>
       )}
@@ -268,30 +268,53 @@ export const StartGame = () => {
         <div className="phase-container">
           <h2>Card Distribution Phase</h2>
           <p>Raja and Mantri cards are revealed. Sipahi, make your guess!</p>
-          
+
           <div className="players-grid">
             {gameState.players.map((player, index) => {
               const card = gameState.cards.find(c => c.playerId === player.id);
-              const isRevealed = card?.isRevealed || false;
-              const isCurrentPlayer = player.id === currentPlayerId;
-              
+              const role = card?.role;
+
+              // 🔥 IMPORTANT LOGIC
+              const isOwnCard = player.id === currentPlayerId;
+              const isRevealed =
+                role === "raja" ||
+                role === "mantri" ||
+                isOwnCard;
+
+              const isCurrentPlayer = isOwnCard;
+
               return (
-                <div key={index} className={`player-card ${isCurrentPlayer ? 'current-player' : ''}`}>
+                <div
+                  key={index}
+                  className={`player-card ${isCurrentPlayer ? 'current-player' : ''}`}
+                >
                   <div className="player-name">{player.name}</div>
-                  <div 
+
+                  <div
                     className={`role-card ${isRevealed ? 'revealed' : 'hidden'}`}
-                    style={{ backgroundColor: isRevealed ? roleColors[card?.role] : '#E0E0E0' }}
+                    style={{
+                      backgroundColor: isRevealed
+                        ? roleColors[role]
+                        : '#E0E0E0'
+                    }}
                   >
                     {isRevealed ? (
                       <div>
-                        <div className="role-name">{getRoleDisplayName(card?.role)}</div>
-                        <div className="role-points">{rolePoints[card?.role]} pts</div>
+                        <div className="role-name">
+                          {getRoleDisplayName(role)}
+                        </div>
+                        <div className="role-points">
+                          {rolePoints[role]} pts
+                        </div>
                       </div>
                     ) : (
                       <div className="card-back">?</div>
                     )}
                   </div>
-                  <div className="player-points">Total: {player.points} pts</div>
+
+                  <div className="player-points">
+                    Total: {player.points} pts
+                  </div>
                 </div>
               );
             })}
@@ -306,14 +329,16 @@ export const StartGame = () => {
                   .map((player, index) => (
                     <button
                       key={index}
-                      className={`guess-btn ${selectedPlayer === player.id ? 'selected' : ''}`}
+                      className={`guess-btn ${selectedPlayer === player.id ? 'selected' : ''
+                        }`}
                       onClick={() => setSelectedPlayer(player.id)}
                     >
                       {player.name}
                     </button>
                   ))}
               </div>
-              <button 
+
+              <button
                 className="btn-primary"
                 onClick={makeGuess}
                 disabled={!selectedPlayer}
@@ -331,20 +356,21 @@ export const StartGame = () => {
         </div>
       )}
 
+
       {gameState.phase === 'reveal' && (
         <div className="phase-container">
           <h2>Reveal Phase</h2>
           <p>All cards are now revealed!</p>
-          
+
           <div className="players-grid">
             {gameState.players.map((player, index) => {
               const card = gameState.cards.find(c => c.playerId === player.id);
               const isCurrentPlayer = player.id === currentPlayerId;
-              
+
               return (
                 <div key={index} className={`player-card ${isCurrentPlayer ? 'current-player' : ''}`}>
                   <div className="player-name">{player.name}</div>
-                  <div 
+                  <div
                     className="role-card revealed"
                     style={{ backgroundColor: roleColors[card?.role] }}
                   >
@@ -379,16 +405,16 @@ export const StartGame = () => {
         <div className="phase-container">
           <h2>Scoring Phase</h2>
           <p>Points have been calculated and applied!</p>
-          
+
           <div className="players-grid">
             {gameState.players.map((player, index) => {
               const card = gameState.cards.find(c => c.playerId === player.id);
               const isCurrentPlayer = player.id === currentPlayerId;
-              
+
               return (
                 <div key={index} className={`player-card ${isCurrentPlayer ? 'current-player' : ''}`}>
                   <div className="player-name">{player.name}</div>
-                  <div 
+                  <div
                     className="role-card revealed"
                     style={{ backgroundColor: roleColors[card?.role] }}
                   >

@@ -1,17 +1,34 @@
+// CLIENT SIDE: components/GetRoom.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 
 const GetRoom = () => {
   const navigate = useNavigate();
-  const { room, roomCode, user, loading, getRoom, startGame, clearRoom } = useAuthStore();
+  const { room, roomCode, user, loading, getRoom, startGame, clearRoom, initSocket } = useAuthStore();
   const [refreshLoading, setRefreshLoading] = useState(false);
 
+  // Initialize socket ONCE when component mounts - no dependencies
+  useEffect(() => {
+    console.log('🎯 GetRoom mounted, initializing socket');
+    initSocket();
+  }, []); // Empty array is fine - we only want this to run once
+
+  // Fetch room details when roomCode is available
   useEffect(() => {
     if (roomCode && !room) {
+      console.log('📥 Fetching room details for:', roomCode);
       fetchRoomDetails();
     }
-  }, [roomCode]);
+  }, [roomCode, room]); // Add both dependencies
+
+  // Navigate when game starts
+  useEffect(() => {
+    if (room?.status === 'playing') {
+      console.log('🎮 Game status is playing, navigating...');
+      navigate('/start-game');
+    }
+  }, [room?.status]); // Only depend on status
 
   const fetchRoomDetails = async () => {
     if (!roomCode) return;
@@ -20,20 +37,20 @@ const GetRoom = () => {
     try {
       await getRoom(roomCode);
     } catch (error) {
-      // Error is handled in the store
+      console.error('Error fetching room:', error);
     } finally {
       setRefreshLoading(false);
     }
   };
- 
+
   const handleStartGame = async () => {
     if (!roomCode || !user) return;
-    navigate('/start-game');
     
     try {
       await startGame(roomCode, user.user);
+      navigate('/start-game');
     } catch (error) {
-      // Error is handled in the store
+      console.error('Error starting game:', error);
     }
   };
 
@@ -111,8 +128,11 @@ const GetRoom = () => {
               <h5 className="text-light mb-3">Players:</h5>
               <div className="list-group">
                 {room.players.map((player, index) => (
-                  <div key={index} className="list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary">
-                    <span>{player.name} {player.isHost && <span className="badge bg-primary ms-2">Host</span>}</span>
+                  <div key={player.user || index} className="list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary">
+                    <span>
+                      {player.name} 
+                      {player.isHost && <span className="badge bg-primary ms-2">Host</span>}
+                    </span>
                     <small className="text-muted">
                       Joined: {new Date(player.joinedAt).toLocaleTimeString()}
                     </small>

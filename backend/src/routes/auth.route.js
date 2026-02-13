@@ -2,7 +2,7 @@ import express from 'express';
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { createRoom, joinRoom, getRoom, startGame } from '../controller/auth.controller.js';
-import { createRoom as mockCreateRoom, joinRoom as mockJoinRoom, getRoom as mockGetRoom, startGame as mockStartGame } from '../controller/mockAuth.controller.js';
+
 
 const router = Router();
 
@@ -12,18 +12,18 @@ router.post('/', (req, res) => {
 });
 
 // Check if MongoDB is connected and use appropriate controller
-const isMongoConnected = mongoose.connection.readyState === 1;
+// const isMongoConnected = mongoose.connection.readyState === 1;
 
 // Create a new room with host name and round selection
-router.post('/create-room', isMongoConnected ? createRoom : mockCreateRoom);
+router.post('/create-room', createRoom );
 
 // Join an existing room with room code
-router.post('/join-room', isMongoConnected ? joinRoom : mockJoinRoom);
+router.post('/join-room', joinRoom);
 
 // Get room details by room code
-router.get('/room/:roomCode', isMongoConnected ? getRoom : mockGetRoom);
+router.get('/room/:roomCode', getRoom);
 
 // Start the game (only host can start)
-router.post('/start-game', isMongoConnected ? startGame : mockStartGame);
+router.post('/start-game', startGame );
 
 export default router;
