@@ -1,10 +1,9 @@
-// CLIENT SIDE: store/auth.store.js
 import { axiosInstance } from "../lib/axios";
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { socket } from "../lib/socket";
 
-let socketInitialized = false; // Global flag outside Zustand
+let socketInitialized = false;
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -15,57 +14,38 @@ export const useAuthStore = create((set, get) => ({
   round: null,
 
   initSocket: () => {
-    // Use global flag to prevent multiple initializations
-    if (socketInitialized) {
-      console.log('Socket already initialized');
-      return;
-    }
+    if (socketInitialized) return;
 
-    console.log('🔄 Initializing socket...');
-
-    // Remove all existing listeners first
     socket.removeAllListeners();
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-      
-      // Rejoin room if user was in one
-      const { roomCode } = get();
-      if (roomCode) {
-        console.log(`🔄 Rejoining room: ${roomCode}`);
-        socket.emit("join-room", roomCode);
-      }
+      const { roomCode, user } = get();
+      if (!roomCode || !user) return;
+
+      socket.emit("join-room", {
+        roomCode,
+        playerId: user.user,
+        playerName: user.name
+      });
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
-    });
+    socket.on("disconnect", () => {});
 
     socket.on("room-updated", (data) => {
-      console.log("📨 ROOM UPDATED EVENT RECEIVED:", data);
-      console.log("👥 Players:", data.players);
-      
-      // Update the room state
       set((state) => ({
         ...state,
         room: data,
         round: data.round
       }));
-      
-      console.log("✅ Room state updated in store");
     });
 
     socket.on("game-started", (data) => {
-      console.log("📨 GAME STARTED EVENT:", data);
       set({ room: data.room, round: data.room.round });
     });
 
-    // Mark as initialized globally
     socketInitialized = true;
 
-    // Connect the socket
     if (!socket.connected) {
-      console.log('🔌 Connecting socket...');
       socket.connect();
     }
   },
@@ -73,29 +53,27 @@ export const useAuthStore = create((set, get) => ({
   createRoom: async (roomData) => {
     set({ loading: true, error: null });
     try {
-      console.log('🏗️ Creating room...');
       const response = await axiosInstance.post("/create-room", roomData);
-      
       const roomInfo = response.data.room;
-      console.log('✅ Room created:', roomInfo.roomCode);
+      const hostUser = roomInfo.players[0];
 
       set({
-        user: roomInfo.players[0],
+        user: hostUser,
         roomCode: roomInfo.roomCode,
         room: roomInfo,
         round: roomInfo.round,
         loading: false
       });
-      
-      // Join socket room
-      console.log(`🔌 Joining socket room: ${roomInfo.roomCode}`);
-      socket.emit("join-room", roomInfo.roomCode);
+
+      socket.emit("join-room", {
+        roomCode: roomInfo.roomCode,
+        playerId: hostUser.user,
+        playerName: hostUser.name
+      });
 
       toast.success("Room created!");
       return response.data;
-
     } catch (error) {
-      console.error('❌ Create room error:', error);
       const errorMessage = error.response?.data?.message || "Failed to create room";
       set({ error: errorMessage, loading: false });
       toast.error(errorMessage);
@@ -106,14 +84,9 @@ export const useAuthStore = create((set, get) => ({
   joinRoom: async (roomData) => {
     set({ loading: true, error: null });
     try {
-      console.log('🚪 Joining room:', roomData.roomCode);
       const response = await axiosInstance.post("/join-room", roomData);
-      
       const roomInfo = response.data.room;
-      console.log('✅ Joined room:', roomInfo.roomCode);
-      console.log('👥 Total players:', roomInfo.players.length);
-
-      const currentUser = roomInfo.players.find(p => p.name === roomData.name);
+      const currentUser = roomInfo.players.find((player) => player.name === roomData.name);
 
       set({
         user: currentUser,
@@ -122,16 +95,16 @@ export const useAuthStore = create((set, get) => ({
         round: roomInfo.round,
         loading: false
       });
-      
-      // Join socket room
-      console.log(`🔌 Joining socket room: ${roomInfo.roomCode}`);
-      socket.emit("join-room", roomInfo.roomCode);
+
+      socket.emit("join-room", {
+        roomCode: roomInfo.roomCode,
+        playerId: currentUser?.user,
+        playerName: currentUser?.name
+      });
 
       toast.success("Joined room!");
       return response.data;
-
     } catch (error) {
-      console.error('❌ Join room error:', error);
       const errorMessage = error.response?.data?.message || "Failed to join room";
       set({ error: errorMessage, loading: false });
       toast.error(errorMessage);
@@ -143,7 +116,7 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await axiosInstance.get(`/room/${roomCode}`);
-      
+
       set({
         room: response.data.room,
         roomCode: response.data.room.roomCode,
@@ -152,7 +125,6 @@ export const useAuthStore = create((set, get) => ({
       });
 
       return response.data;
-
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to get room";
       set({ error: errorMessage, loading: false });
@@ -165,15 +137,17 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await axiosInstance.post("/start-game", { roomCode, userId });
-      
+      const updatedRoom = response.data.room;
+
       set({
-        room: response.data.room,
+        room: updatedRoom,
         loading: false
       });
 
+      socket.emit("create-game", updatedRoom);
+
       toast.success("Game started!");
       return response.data;
-
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to start game";
       set({ error: errorMessage, loading: false });
@@ -181,7 +155,7 @@ export const useAuthStore = create((set, get) => ({
       throw error;
     }
   },
-  
+
   updateScores: async (roomCode, scores) => {
     try {
       const response = await axiosInstance.post(`/room/${roomCode}/update-scores`, { scores });
@@ -194,7 +168,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
-  
+
   clearRoom: () => {
     const { roomCode } = get();
     if (roomCode) {
