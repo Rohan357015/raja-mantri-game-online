@@ -1,51 +1,62 @@
-// CLIENT SIDE: components/GetRoom.jsx
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import toast from 'react-hot-toast';
+import './styles/getroom.css';
+
+const playerEmojis = ['👑', '🤴', '🥷', '🛡️'];
 
 const GetRoom = () => {
   const navigate = useNavigate();
-  const { room, roomCode, user, loading, getRoom, startGame, clearRoom, initSocket } = useAuthStore();
+
+  const {
+    room,
+    roomCode,
+    user,
+    loading,
+    getRoom,
+    startGame,
+    clearRoom,
+    initSocket,
+  } = useAuthStore();
+
   const [refreshLoading, setRefreshLoading] = useState(false);
 
-  // Initialize socket ONCE when component mounts - no dependencies
   useEffect(() => {
-    console.log('🎯 GetRoom mounted, initializing socket');
     initSocket();
-  }, []); // Empty array is fine - we only want this to run once
+  }, [initSocket]);
 
-  // Fetch room details when roomCode is available
   useEffect(() => {
     if (roomCode && !room) {
-      console.log('📥 Fetching room details for:', roomCode);
       fetchRoomDetails();
     }
-  }, [roomCode, room]); // Add both dependencies
+  }, [roomCode, room]);
 
-  // Navigate when game starts
   useEffect(() => {
     if (room?.status === 'playing') {
-      console.log('🎮 Game status is playing, navigating...');
       navigate('/start-game');
     }
-  }, [room?.status]); // Only depend on status
+  }, [room?.status, navigate]);
 
   const fetchRoomDetails = async () => {
     if (!roomCode) return;
-    
+
     setRefreshLoading(true);
+
     try {
       await getRoom(roomCode);
     } catch (error) {
       console.error('Error fetching room:', error);
+      toast.error('Unable to refresh room details');
     } finally {
       setRefreshLoading(false);
     }
   };
 
   const handleStartGame = async () => {
-    if (!roomCode || !user) return;
-    
+    if (!roomCode || !user || !canStartGame || loading) return;
+
     try {
       await startGame(roomCode, user.user);
       navigate('/start-game');
@@ -59,127 +70,358 @@ const GetRoom = () => {
     navigate('/');
   };
 
-  const handleRefresh = () => {
-    fetchRoomDetails();
+  const handleCopyCode = async () => {
+    const code = room?.roomCode || roomCode;
+
+    if (!code) {
+      toast.error('Room code is unavailable');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success('Room code copied!');
+    } catch {
+      toast.error('Could not copy the room code');
+    }
   };
 
-  if (loading || refreshLoading) {
+  const handleRefresh = () => {
+    if (!refreshLoading) {
+      fetchRoomDetails();
+    }
+  };
+
+  if (loading && !room) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-3">Loading room details...</p>
+      <main className="lobby-loading">
+        <div className="lobby-loading-card">
+          <div className="lobby-loader">👑</div>
+          <h2>Entering the Kingdom...</h2>
+          <p>Getting your royal room ready!</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (!room) {
     return (
-      <div className="d-flex flex-column justify-content-center align-items-center game-container">
-        <div className="container-fluid px-4 py-5 text-center">
-          <h1 className="fw-bold mb-4 game-title">Room Not Found</h1>
-          <p className="mb-4">Unable to load room details.</p>
-          <button className="btn-game-warning" onClick={() => navigate('/')}>
-            Go Home
+      <main className="lobby-error-page">
+        <div className="lobby-error-card">
+          <span>🏰</span>
+          <h1>Room Not Found</h1>
+          <p>
+            We couldn't load your royal kingdom.
+            Please try again or return home.
+          </p>
+
+          <button
+            className="lobby-button lobby-button-primary"
+            onClick={() => navigate('/')}
+          >
+            ← Go Home
           </button>
+
+          {roomCode && (
+            <button
+              className="lobby-button lobby-button-outline"
+              onClick={handleRefresh}
+              disabled={refreshLoading}
+            >
+              {refreshLoading ? 'Refreshing...' : 'Try Again'}
+            </button>
+          )}
         </div>
-      </div>
+      </main>
     );
   }
 
-  const isHost = user?.isHost;
-  const canStartGame = isHost && room.players.length >= 4 && room.status === 'waiting';
+  const players = room.players || [];
+  const maxPlayers = Number(room.maxPlayers) || 4;
+  const isHost = Boolean(user?.isHost);
+  const isWaiting = room.status === 'waiting';
+
+  const canStartGame =
+    isHost && players.length >= 4 && isWaiting;
+
+  const remainingSlots = Math.max(
+    0,
+    maxPlayers - players.length
+  );
 
   return (
-    <div className="d-flex flex-column justify-content-center align-items-center game-container">
-      <div className="container-fluid px-4 py-5">
-        {/* Title */}
-        <div className="text-center mb-5">
-          <h1 className="fw-bold mb-4 game-title">Room Details</h1>
-          <hr className="mx-auto game-divider" />
-        </div>
+    <main className="lobby-page">
+      {/* Navbar */}
+      <header className="lobby-navbar">
+        <button
+          className="lobby-brand"
+          onClick={() => navigate('/')}
+          aria-label="Go to homepage"
+        >
+          <span className="lobby-brand-crown">👑</span>
+          <span>Raja-Mantri-Chor-Sipahi</span>
+        </button>
 
-        {/* Room Info Card */}
-        <div className="d-flex justify-content-center mb-5">
-          <div className="p-5 form-bg" style={{ minWidth: '500px' }}>
-            <h2 className="text-center text-success mb-4 fs-2 fw-bold">Room: {room.roomCode}</h2>
-            
-            {/* Room Status */}
-            <div className="mb-4">
-              <h5 className="text-light">Status: 
-                <span className={`ms-2 badge ${room.status === 'waiting' ? 'bg-warning' : 'bg-success'}`}>
-                  {room.status.toUpperCase()}
-                </span>
-              </h5>
+        <button
+          className="lobby-home-button"
+          onClick={() => navigate('/')}
+        >
+          <span>←</span>
+          Home
+        </button>
+      </header>
+
+      {/* Main lobby layout */}
+      <section className="lobby-layout">
+        {/* Left illustrated panel */}
+        <aside className="lobby-illustration">
+          <div className="lobby-cloud lobby-cloud-one">☁️</div>
+          <div className="lobby-cloud lobby-cloud-two">☁️</div>
+
+          <div className="lobby-castle">🏰</div>
+
+          <div className="lobby-wooden-sign">
+            <span>✨</span>
+            <h1>
+              {isWaiting ? 'Waiting for Players!' : 'Game in Progress!'}
+            </h1>
+            <p>
+              {isWaiting
+                ? 'Gather your friends and let the royal game begin!'
+                : 'Your royal adventure is underway!'}
+            </p>
+          </div>
+
+          <div className="lobby-scene-characters">
+            <span className="lobby-scene-king">🤴</span>
+            <span className="lobby-scene-minister">🧑‍⚖️</span>
+            <span className="lobby-scene-thief">🥷</span>
+            <span className="lobby-scene-guard">🛡️</span>
+          </div>
+
+          <div className="lobby-hill" />
+          <div className="lobby-path" />
+
+          <div className="lobby-scene-caption">
+            👑 Every player has a secret role!
+          </div>
+        </aside>
+
+        {/* Room details panel */}
+        <section className="lobby-main-card">
+          <div className="lobby-heading">
+            <span className="lobby-heading-icon">👑</span>
+
+            <div>
+              <h1>Room Details</h1>
+              <p>Here's your royal gathering!</p>
             </div>
+          </div>
 
-            {/* Room Details */}
-            <div className="mb-4">
-              <p className="text-light"><strong>Host:</strong> {room.hostName}</p>
-              <p className="text-light"><strong>Rounds:</strong> {room.round}</p>
-              <p className="text-light"><strong>Players:</strong> {room.players.length}/{room.maxPlayers}</p>
-            </div>
+          {/* Room code and status */}
+          <div className="lobby-top-grid">
+            <div className="lobby-code-card">
+              <span className="lobby-card-label">ROOM CODE</span>
 
-            {/* Players List */}
-            <div className="mb-4">
-              <h5 className="text-light mb-3">Players:</h5>
-              <div className="list-group">
-                {room.players.map((player, index) => (
-                  <div key={player.user || index} className="list-group-item d-flex justify-content-between align-items-center bg-dark text-light border-secondary">
-                    <span>
-                      {player.name} 
-                      {player.isHost && <span className="badge bg-primary ms-2">Host</span>}
-                    </span>
-                    <small className="text-muted">
-                      Joined: {new Date(player.joinedAt).toLocaleTimeString()}
-                    </small>
-                  </div>
-                ))}
+              <div className="lobby-code-row">
+                <strong>{room.roomCode || roomCode}</strong>
+
+                <button
+                  className="lobby-copy-button"
+                  onClick={handleCopyCode}
+                  aria-label="Copy room code"
+                  title="Copy room code"
+                >
+                  <svg
+                    width="21"
+                    height="21"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="8" y="8" width="12" height="12" rx="2" />
+                    <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+                  </svg>
+                </button>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="text-center">
-              {canStartGame && (
-                <button 
-                  className="btn-game-success me-3"
-                  onClick={handleStartGame}
-                  disabled={loading}
-                >
-                  {loading ? 'Starting...' : 'Start Game'}
-                </button>
-              )}
-              
-              <button 
-                className="btn-game-warning me-3"
-                onClick={handleRefresh}
-                disabled={refreshLoading}
+            <div className="lobby-status-card">
+              <span className="lobby-card-label">STATUS</span>
+
+              <span
+                className={`lobby-status-badge ${
+                  isWaiting ? 'status-waiting' : 'status-playing'
+                }`}
               >
-                {refreshLoading ? 'Refreshing...' : 'Refresh'}
-              </button>
-              
-              <button 
-                className="btn btn-outline-danger"
-                onClick={handleLeaveRoom}
-              >
-                Leave Room
-              </button>
+                <span className="lobby-status-dot" />
+                {room.status}
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Room Code Display */}
-        <div className="text-center mb-5">
-          <div className="text-warning d-inline-block room-code">
-            <p className="fs-4 fw-bold">Room Code: {room.roomCode}</p>
-            <p className="text-light">Share this code with other players to join!</p>
+          {/* Room statistics */}
+          <div className="lobby-stats-grid">
+            <div className="lobby-stat-card">
+              <span className="lobby-stat-icon">👤</span>
+              <div>
+                <span>Host</span>
+                <strong>{room.hostName || 'Host'}</strong>
+              </div>
+            </div>
+
+            <div className="lobby-stat-card">
+              <span className="lobby-stat-icon">🔄</span>
+              <div>
+                <span>Rounds</span>
+                <strong>{room.round}</strong>
+              </div>
+            </div>
+
+            <div className="lobby-stat-card">
+              <span className="lobby-stat-icon">👥</span>
+              <div>
+                <span>Players</span>
+                <strong>{players.length} / {maxPlayers}</strong>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+
+          {/* Players */}
+          <div className="lobby-players-heading">
+            <h2>
+              <span>👥</span>
+              Players ({players.length}/{maxPlayers})
+            </h2>
+
+            <span className="lobby-waiting-label">
+              <span className="lobby-status-dot" />
+              {players.length >= 4
+                ? 'Ready to play!'
+                : 'Waiting for players...'}
+            </span>
+          </div>
+
+          <div className="lobby-player-grid">
+            {players.map((player, index) => (
+              <article
+                className="lobby-player-card"
+                key={player.user || player._id || player.id || index}
+              >
+                <div className="lobby-avatar">
+                  {player.avatar || playerEmojis[index % playerEmojis.length]}
+                </div>
+
+                <strong className="lobby-player-name">
+                  {player.name}
+                </strong>
+
+                {player.isHost && (
+                  <span className="lobby-host-badge">
+                    👑 Host
+                  </span>
+                )}
+
+                <span className="lobby-player-time">
+                  {player.joinedAt &&
+                  !Number.isNaN(new Date(player.joinedAt).getTime())
+                    ? `Joined ${new Date(player.joinedAt).toLocaleTimeString(
+                        [],
+                        { hour: '2-digit', minute: '2-digit' }
+                      )}`
+                    : player.isHost
+                      ? 'Room creator'
+                      : 'Player joined'}
+                </span>
+              </article>
+            ))}
+
+            {Array.from(
+              { length: remainingSlots },
+              (_, index) => (
+                <div
+                  className="lobby-empty-slot"
+                  key={`empty-${index}`}
+                >
+                  <span>👤</span>
+                  <p>Waiting for player...</p>
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="lobby-actions">
+            {isHost && (
+              <button
+                className="lobby-button lobby-button-start"
+                onClick={handleStartGame}
+                disabled={!canStartGame || loading}
+                title={
+                  players.length < 4
+                    ? 'At least 4 players are required'
+                    : 'Start the game'
+                }
+              >
+                <span>▶</span>
+                {loading ? 'Starting...' : 'Start Game'}
+              </button>
+            )}
+
+            <button
+              className="lobby-button lobby-button-outline"
+              onClick={handleRefresh}
+              disabled={refreshLoading}
+            >
+              <span className={refreshLoading ? 'lobby-refreshing' : ''}>
+                ↻
+              </span>
+              {refreshLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+
+            <button
+              className="lobby-button lobby-button-leave"
+              onClick={handleLeaveRoom}
+            >
+              <span>🚪</span>
+              Leave Room
+            </button>
+          </div>
+
+          {!isHost && isWaiting && (
+            <p className="lobby-host-message">
+              🌟 Waiting for the host to start the game.
+            </p>
+          )}
+
+          {!isHost && players.length < 4 && (
+            <p className="lobby-host-message">
+              💡 Share the room code to invite more friends.
+            </p>
+          )}
+
+          {/* Share reminder */}
+          <div className="lobby-share-note">
+            <span>💡</span>
+            <p>
+              Share this room code with your friends so
+              they can join your royal adventure!
+            </p>
+            <button onClick={handleCopyCode}>
+              Copy Code
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <footer className="lobby-footer">
+        👑 Made for friends, fun, and a little mystery!
+      </footer>
+    </main>
   );
 };
 

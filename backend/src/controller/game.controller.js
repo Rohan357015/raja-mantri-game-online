@@ -1,5 +1,4 @@
 import Game from '../model/game.model.js';
-import User from '../model/user.model.js';
 
 
 export const assignRoles = async (req, res) => {

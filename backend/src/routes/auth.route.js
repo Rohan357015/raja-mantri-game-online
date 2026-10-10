@@ -1,6 +1,4 @@
-import express from 'express';
 import { Router } from 'express';
-import mongoose from 'mongoose';
 import { createRoom, joinRoom, getRoom, startGame } from '../controller/auth.controller.js';
 
 
@@ -10,9 +8,6 @@ router.post('/', (req, res) => {
   // Registration logic here
   res.send('home page');
 });
-
-// Check if MongoDB is connected and use appropriate controller
-// const isMongoConnected = mongoose.connection.readyState === 1;
 
 // Create a new room with host name and round selection
 router.post('/create-room', createRoom );

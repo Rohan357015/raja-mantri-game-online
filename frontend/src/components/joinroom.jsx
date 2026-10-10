@@ -1,36 +1,48 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './styles/joinroom.css';
 import { useAuthStore } from '../store/auth.store';
+import toast from 'react-hot-toast';
 
 const JoinRoom = () => {
   const navigate = useNavigate();
   const { joinRoom, loading } = useAuthStore();
+
   const [formData, setFormData] = useState({
     name: '',
-    roomCode: ''
+    roomCode: '',
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]:
+        name === 'roomCode'
+          ? value.toUpperCase().replace(/\s/g, '')
+          : value,
     }));
   };
 
   const handleJoinRoom = async (e) => {
     e.preventDefault();
-    
-    if (!formData.name || !formData.roomCode) {
+
+    if (!formData.name.trim() || !formData.roomCode.trim()) {
+      toast.error('Please enter your name and room code');
       return;
     }
 
     try {
-      await joinRoom(formData);
+      await joinRoom({
+        name: formData.name.trim(),
+        roomCode: formData.roomCode.trim(),
+      });
+
       navigate('/get-room');
     } catch (error) {
-      // Error is handled in the store
+      // Error notification is handled by the store.
     }
   };
 
@@ -39,75 +51,203 @@ const JoinRoom = () => {
   };
 
   return (
-    <div className="d-flex flex-column justify-content-center align-items-center game-container">
-      <div className="container-fluid px-4 py-5">
-        {/* Title */}
-        <div className="text-center mb-5">
-          <h1 className="fw-bold mb-4 game-title">Raja Mantri</h1>
-          <hr className="mx-auto game-divider" />
+    <main className="join-room-page">
+      {/* Navbar */}
+      <header className="jr-navbar">
+        <button
+          type="button"
+          className="jr-brand"
+          onClick={() => navigate('/')}
+        >
+          <span>👑</span>
+          <span>Raja-Mantri</span>
+        </button>
+
+        <button
+          type="button"
+          className="jr-back-button"
+          onClick={() => navigate('/')}
+        >
+          <span>←</span> Home
+        </button>
+      </header>
+
+      {/* Main content */}
+      <section className="jr-layout">
+        {/* Left illustration */}
+        <div className="jr-illustration">
+          <div className="jr-cloud jr-cloud-one">☁️</div>
+          <div className="jr-cloud jr-cloud-two">☁️</div>
+          <div className="jr-sun" />
+
+          <div className="jr-illustration-content">
+            <span className="jr-eyebrow">
+              ✨ YOUR FRIENDS ARE WAITING
+            </span>
+
+            <h1>
+              Join the
+              <span>Adventure!</span>
+            </h1>
+
+            <p>
+              Enter your secret room code, meet your friends,
+              and uncover the mystery of Raja-Mantri-Chor-Sipahi.
+            </p>
+
+            <div className="jr-scene">
+              <div className="jr-castle">🏰</div>
+
+              <div className="jr-signboard">
+                <span>🎮</span>
+                <strong>Friends' Kingdom</strong>
+                <small>Fun begins here!</small>
+              </div>
+
+              <div className="jr-character-row">
+                <span className="jr-character jr-minister">🤴</span>
+                <span className="jr-character jr-king">👑</span>
+                <span className="jr-character jr-thief">🥷</span>
+                <span className="jr-character jr-guard">🛡️</span>
+              </div>
+
+              <div className="jr-ground" />
+            </div>
+
+            <div className="jr-fun-fact">
+              <span>💡</span>
+              <p>
+                Ask your friend who created the room for
+                the correct room code.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Form */}
-        <div className="d-flex justify-content-center mb-5">
-          <form className="p-5 form-bg" onSubmit={handleJoinRoom}>
-            <h2 className="text-center text-success mb-4 fs-2 fw-bold">Join Room</h2>
+        {/* Join form */}
+        <div className="jr-form-card">
+          <div className="jr-form-heading">
+            <div className="jr-form-icon">🎮</div>
 
-            {/* Name Input */}
-            <div className="mb-4">
-              <label htmlFor="playerName" className="form-label fw-semibold text-light fs-5 mb-3">
-                Player Name:
+            <h2>Join a Room</h2>
+
+            <p>Enter your details to join your friends.</p>
+          </div>
+
+          <form onSubmit={handleJoinRoom}>
+            {/* Player name */}
+            <div className="jr-field">
+              <label htmlFor="jr-player-name">
+                Your Name <span>*</span>
               </label>
-              <input
-                type="text"
-                id="playerName"
-                name="name"
-                className="form-control game-input"
-                placeholder="Enter your name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
+
+              <div className="jr-input-wrap">
+                <span className="jr-input-icon">👤</span>
+
+                <input
+                  id="jr-player-name"
+                  type="text"
+                  name="name"
+                  placeholder="Enter your name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  maxLength={24}
+                  autoComplete="name"
+                  required
+                />
+              </div>
+
+              <small>This name will be visible to other players.</small>
             </div>
 
-            {/* Room Code Input */}
-            <div className="mb-5">
-              <label htmlFor="roomCode" className="form-label fw-semibold text-light fs-5 mb-3">
-                Room Code:
+            {/* Room code */}
+            <div className="jr-field">
+              <label htmlFor="jr-room-code">
+                Room Code <span>*</span>
               </label>
-              <input
-                type="text"
-                id="roomCode"
-                name="roomCode"
-                className="form-control game-input"
-                placeholder="Enter room code"
-                value={formData.roomCode}
-                onChange={handleInputChange}
-                required
-              />
+
+              <div className="jr-input-wrap">
+                <span className="jr-input-icon">🔑</span>
+
+                <input
+                  id="jr-room-code"
+                  type="text"
+                  name="roomCode"
+                  placeholder="Enter your room code"
+                  value={formData.roomCode}
+                  onChange={handleInputChange}
+                  maxLength={12}
+                  autoComplete="off"
+                  spellCheck={false}
+                  required
+                />
+              </div>
+
+              <small>
+                Room codes are not case-sensitive in this form.
+              </small>
             </div>
 
-            {/* Join Room Button */}
-            <div className="text-center">
-              <button 
-                type="submit" 
-                className="btn-game-success"
-                disabled={loading}
-              >
-                {loading ? 'Joining...' : 'Join Room'}
-              </button>
+            {/* Info */}
+            <div className="jr-info-box">
+              <span>💡</span>
+              <p>
+                Make sure the room code matches the one
+                shared by your host.
+              </p>
             </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              className="jr-submit-button"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="jr-spinner" />
+                  Joining Room...
+                </>
+              ) : (
+                <>
+                  <span>🎮</span>
+                  Join My Friends
+                  <span className="jr-submit-arrow">→</span>
+                </>
+              )}
+            </button>
+
+            <div className="jr-form-divider">
+              <span />
+              <p>or</p>
+              <span />
+            </div>
+
+            <p className="jr-switch-text">
+              Don't have a room yet?
+            </p>
+
+            <button
+              type="button"
+              className="jr-create-button"
+              onClick={handleCreateRoom}
+            >
+              <span>👑</span>
+              Create a New Room
+            </button>
           </form>
-        </div>
 
-        {/* Create Room Section */}
-        <div className="text-center">
-          <p className="fw-semibold section-divider">Want to create a new room?</p>
-          <button className="btn-game-warning" onClick={handleCreateRoom}>
-            Create Room
-          </button>
+          <div className="jr-secure-note">
+            <span>🤝</span>
+            More friends, more fun!
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <footer className="jr-footer">
+        👑 Made for friends, fun, and a little mystery!
+      </footer>
+    </main>
   );
 };
 
