@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../store/game.store";
 import { useAuthStore } from "../store/auth.store";
 import "./styles/gamepage.css";
@@ -11,7 +12,8 @@ const ROLE_META = {
 };
 
 const GamePlay = () => {
-  const { roomCode, room, user, initSocket } = useAuthStore();
+  const navigate = useNavigate();
+  const { roomCode, room, user, initSocket, clearRoom } = useAuthStore();
   const {
     game,
     loading,
@@ -19,6 +21,7 @@ const GamePlay = () => {
     makeGuess,
     calculateScores,
     nextRound,
+    playAgain,
     getLeaderboard
   } = useGameStore();
 
@@ -48,6 +51,20 @@ const GamePlay = () => {
   const handleNextRound = async () => {
     if (!roomCode || loading) return;
     await nextRound(roomCode);
+  };
+
+  const handlePlayAgain = async () => {
+    if (!roomCode || loading) return;
+    await playAgain(roomCode);
+  };
+
+  const handleGoHome = () => {
+    navigate("/");
+  };
+
+  const handleLeaveGame = () => {
+    clearRoom();
+    navigate("/");
   };
 
   const renderCard = (card) => {
@@ -91,6 +108,14 @@ const GamePlay = () => {
   return (
     <div className="game-container">
       <div className="game-header">
+        <div className="game-actions">
+          <button type="button" className="btn-light" onClick={handleGoHome}>
+            Home
+          </button>
+          <button type="button" className="btn-danger" onClick={handleLeaveGame}>
+            Leave Game
+          </button>
+        </div>
         <h1>Raja Mantri Chor Sipahi</h1>
         <div className="room-info">
           <span>Room: {roomCode}</span>
@@ -186,6 +211,13 @@ const GamePlay = () => {
           <p>
             Winner: <strong>{game?.finalRanks?.[0]?.playerName}</strong> ({game?.finalRanks?.[0]?.title})
           </p>
+          {isHost ? (
+            <button className="btn-secondary" onClick={handlePlayAgain} disabled={loading}>
+              {loading ? "Starting..." : "Play Again"}
+            </button>
+          ) : (
+            <p>Host can start another game in this room.</p>
+          )}
         </div>
       )}
     </div>

@@ -368,6 +368,37 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("play-again", async ({ roomCode }) => {
+    try {
+      const normalizedRoomCode = roomCode?.toUpperCase();
+      if (!normalizedRoomCode) return;
+      const game = await Game.findOne({ roomCode: normalizedRoomCode });
+      if (!game) return;
+
+      if (game.phase !== "game-finished") {
+        socket.emit("game-error", { message: "Game is not finished yet." });
+        return;
+      }
+
+      game.players.forEach((player) => {
+        player.points = 0;
+        player.role = null;
+      });
+      game.currentRound = 1;
+      game.roundResults = [];
+      game.sipahiGuess = null;
+      game.gameStarted = true;
+      game.startedAt = new Date();
+
+      assignRoundRoles(game);
+      await game.save();
+      await emitGameState(normalizedRoomCode);
+    } catch (error) {
+      socket.emit("game-error", { message: "Unable to start another game." });
+      console.error(error);
+    }
+  });
+
   socket.on("disconnect", () => {
     socketMeta.delete(socket.id);
   });

@@ -7,6 +7,7 @@
 }
 
 .game-header {
+  position: relative;
   text-align: center;
   margin-bottom: 24px;
   background: linear-gradient(135deg, hsl(210, 15%, 12%), hsl(210, 20%, 18%));
@@ -14,6 +15,13 @@
   box-shadow: 0 20px 60px hsla(210, 15%, 5%, 0.4);
   padding: 20px;
   border-radius: 1rem;
+}
+
+.game-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .game-header h1 {
@@ -209,7 +217,9 @@
 }
 
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-light,
+.btn-danger {
   border: none;
   border-radius: 0.75rem;
   padding: 12px 22px;
@@ -227,8 +237,19 @@
   background: hsl(120, 75%, 55%);
 }
 
+.btn-light {
+  background: hsl(0, 0%, 94%);
+}
+
+.btn-danger {
+  background: hsl(0, 78%, 58%);
+  color: hsl(0, 0%, 98%);
+}
+
 .btn-primary:disabled,
-.btn-secondary:disabled {
+.btn-secondary:disabled,
+.btn-light:disabled,
+.btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -250,6 +271,10 @@
 }
 
 @media (max-width: 720px) {
+  .game-actions {
+    justify-content: center;
+  }
+
   .result-row {
     grid-template-columns: 1fr;
     text-align: left;

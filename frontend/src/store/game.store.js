@@ -63,6 +63,16 @@ export const useGameStore = create((set, get) => ({
     }
   },
 
+  playAgain: async (roomCode) => {
+    try {
+      set({ loading: true });
+      socket.emit("play-again", { roomCode });
+    } catch {
+      toast.error("Unable to start another game");
+      set({ loading: false });
+    }
+  },
+
   getCurrentPlayerRole: (userId) => {
     const game = get().game;
     if (!game || !userId) return null;
