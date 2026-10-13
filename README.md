@@ -75,6 +75,11 @@ mongodb+srv://<user>:<password>@<cluster-url>/raja-mantri-game
 MONGODB_URI=<your MongoDB Atlas connection string>
 CORS_ORIGINS=https://<your-frontend-project>.vercel.app
 ```
+For your current frontend, use:
+```bash
+CORS_ORIGINS=https://raja-mantri-game-online-2rug.vercel.app
+FRONTEND_URL=https://raja-mantri-game-online-2rug.vercel.app
+```
 6. Deploy the backend.
 7. Open the backend URL. The `/` route should show `Server is running!`.
 

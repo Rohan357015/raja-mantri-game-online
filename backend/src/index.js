@@ -15,20 +15,33 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Only allow frontend origins listed in CORS_ORIGINS. Local Vite is the default.
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(origin);
+const normalizeOrigin = (origin) => origin?.trim().replace(/\/+$/, "");
+
+// Only allow known frontend origins. CORS_ORIGINS may be comma-separated.
+const allowedOrigins = new Set(
+  [
+    "http://localhost:5173",
+    "https://raja-mantri-game-online-2rug.vercel.app",
+    process.env.FRONTEND_URL,
+    ...(process.env.CORS_ORIGINS || "").split(",")
+  ]
+    .map(normalizeOrigin)
+    .filter(Boolean)
+);
+
+const isAllowedOrigin = (origin) => !origin || allowedOrigins.has(normalizeOrigin(origin));
+
+const corsOriginHandler = (origin, callback) => {
+  if (isAllowedOrigin(origin)) return callback(null, true);
+
+  console.warn(`Blocked CORS origin: ${origin}`);
+  return callback(new Error("CORS origin not allowed"), false);
+};
 
 // Socket.IO server for realtime room/game updates.
 const io = new Server(server, {
   cors: {
-    origin: (origin, callback) => {
-      if (isAllowedOrigin(origin)) return callback(null, true);
-      return callback(new Error("CORS origin not allowed"), false);
-    },
+    origin: corsOriginHandler,
     credentials: true,
     methods: ["GET", "POST"]
   }
@@ -496,10 +509,7 @@ connectDB().catch(() => {
 // Express CORS middleware for REST API requests.
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (isAllowedOrigin(origin)) return callback(null, true);
-      return callback(new Error("CORS origin not allowed"), false);
-    },
+    origin: corsOriginHandler,
     credentials: true
   })
 );
