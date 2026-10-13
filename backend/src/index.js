@@ -486,6 +486,13 @@ io.on("connection", (socket) => {
 // Make Socket.IO accessible inside REST controllers through req.app.get("io").
 app.set("io", io);
 
+// Start the MongoDB connection during cold start. Mongoose will reuse this
+// connection between requests while the Vercel Function instance is warm.
+connectDB().catch(() => {
+  // The connection error is logged in connectDB; route handlers will fail if
+  // MongoDB remains unavailable.
+});
+
 // Express CORS middleware for REST API requests.
 app.use(
   cors({
@@ -509,8 +516,13 @@ app.get("/", (req, res) => {
   res.send("Server is running!");
 });
 
-// Start the HTTP + Socket.IO server, then connect to MongoDB.
+// Start the HTTP + Socket.IO server locally. On Vercel, the exported server is
+// hosted as a Function and Vercel owns the listener.
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  connectDB();
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+export default server;
